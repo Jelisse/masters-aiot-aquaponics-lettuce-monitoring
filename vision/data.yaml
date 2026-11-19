@@ -1,0 +1,10 @@
+# Dataset config for train_yolov8_seg.py (paths relative to this file's folder)
+path: .
+
+train: dataset_split/images/train
+val: dataset_split/images/val
+test: dataset_split/images/test
+
+nc: 1
+names:
+  - lettuce

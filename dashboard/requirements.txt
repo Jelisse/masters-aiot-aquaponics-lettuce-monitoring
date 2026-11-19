@@ -1,0 +1,6 @@
+flask
+schedule
+pyodbc
+ultralytics>=8.3
+opencv-python
+numpy

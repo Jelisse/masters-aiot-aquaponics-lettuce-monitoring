@@ -1,0 +1,102 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Aquaponics Lettuce Growth Monitor</title><script src="https://cdn.tailwindcss.com"></script><style>body {font-family: 'Inter', sans-serif;background-color: #f4f7f6;}.header {background-color: #008080; /* Teal/Turquoise color */color: white;}.group-card {border: 1px solid #ddd;transition: all 0.3s ease;}.group-card:hover {box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);transform: translateY(-2px);}.metric-box {background-color: #e6f7f7;border-left: 4px solid #008080;}</style></head><body class="min-h-screen"><!-- Header Banner -->
+<header class="header p-4 shadow-lg flex justify-between items-center">
+    <h1 class="text-2xl font-bold">Smart Aquaponics Monitoring</h1>
+    <div class="text-sm">
+        <p>Last Data Save: <span id="last-save-time" class="font-semibold">{{ latest_save_time }}</span></p>
+        <p>Report Time: <span id="current-time-display" class="font-semibold">{{ current_time }}</span></p>
+    </div>
+</header>
+
+<!-- Main Content Grid -->
+<main class="p-6">
+    <h2 class="text-xl font-semibold text-gray-700 mb-6">Group Metrics Overview</h2>
+
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6" id="metrics-grid">
+        <!-- Cards will be populated here by JavaScript -->
+        {% for group_name in groups %}
+            <div id="card-{{ loop.index }}" class="group-card rounded-xl bg-white overflow-hidden shadow-lg p-4 flex flex-col">
+                <h3 class="text-lg font-bold text-center mb-4 text-[#008080] border-b pb-2">{{ group_name }}</h3>
+                
+                <!-- Placeholder for Image and Loading -->
+                <div class="relative flex-grow flex items-center justify-center bg-gray-100 rounded-lg mb-4 h-64 md:h-80 overflow-hidden">
+                    <img id="image-{{ loop.index }}" class="w-full h-full object-contain" src="" alt="Annotated plant image for {{ group_name }}">
+                    <div id="loader-{{ loop.index }}" class="absolute text-gray-500 font-medium">Loading Data...</div>
+                </div>
+
+                <!-- Metrics Display Area -->
+                <div id="metrics-{{ loop.index }}" class="space-y-2">
+                    <p class="text-gray-500 text-center font-medium">Waiting for first measurement...</p>
+                    <!-- Individual plant metrics will go here -->
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+</main>
+
+<!-- JavaScript for Data Fetching and Display -->
+<script>
+    const groupNames = JSON.parse('{{ groups | tojson | safe }}');
+    const metricGrid = document.getElementById('metrics-grid');
+
+    // Function to fetch data and update the dashboard
+    function fetchAndUpdateData() {
+        fetch('/api/metrics')
+            .then(response => response.json())
+            .then(data => {
+                document.getElementById('last-save-time').textContent = data.latest_save_time || 'N/A';
+                document.getElementById('current-time-display').textContent = new Date().toLocaleString();
+                
+                groupNames.forEach((groupName, index) => {
+                    const groupData = data[groupName];
+                    const cardIndex = index + 1;
+                    const imageElement = document.getElementById(`image-${cardIndex}`);
+                    const loaderElement = document.getElementById(`loader-${cardIndex}`);
+                    const metricsContainer = document.getElementById(`metrics-${cardIndex}`);
+                    
+                    // Clear previous metrics
+                    metricsContainer.innerHTML = '';
+
+                    if (groupData && groupData.image) {
+                        // Hide loader and show image
+                        loaderElement.classList.add('hidden');
+                        imageElement.src = groupData.image;
+
+                        if (groupData.plants.length > 0) {
+                            groupData.plants.forEach((plant, plantIndex) => {
+                                const plantMetricHtml = `
+                                    <div class="metric-box p-3 rounded-lg shadow-sm">
+                                        <p class="font-bold text-gray-800">${plant.name} #${plantIndex + 1}</p>
+                                        <div class="flex justify-between text-sm mt-1">
+                                            <span class="text-gray-600">Height: <strong class="text-green-700">${plant.height_cm.toFixed(1)} cm</strong></span>
+                                            <span class="text-gray-600">Width: <strong class="text-green-700">${plant.width_cm.toFixed(1)} cm</strong></span>
+                                            <span class="text-gray-600">Area: <strong class="text-green-700">${plant.area_cm2 != null ? plant.area_cm2.toFixed(0) : '-'} cm²</strong></span>
+                                            <span class="text-gray-600">Conf: <strong>${(plant.confidence * 100).toFixed(0)}%</strong></span>
+                                        </div>
+                                    </div>
+                                `;
+                                metricsContainer.innerHTML += plantMetricHtml;
+                            });
+                        } else {
+                            metricsContainer.innerHTML = '<p class="text-red-500 font-medium text-center">No Lettuce Detected.</p>';
+                        }
+                    } else {
+                        // Show loader if no data is present
+                        loaderElement.classList.remove('hidden');
+                        imageElement.src = '';
+                        metricsContainer.innerHTML = '<p class="text-gray-500 font-medium text-center">Waiting for first measurement...</p>';
+                    }
+                });
+            })
+            .catch(error => {
+                console.error('Error fetching metrics:', error);
+                // Display error message in a central location or on each card
+            });
+    }
+
+    // Fetch data immediately on load
+    fetchAndUpdateData();
+
+    // Refresh data every 10 seconds (for real-time dashboard feel, independent of the 3-hour save)
+    setInterval(fetchAndUpdateData, 10000); 
+</script>
+</body></html>
